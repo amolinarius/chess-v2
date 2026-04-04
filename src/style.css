@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+	--theme-background:       #302e2b;
+	--theme-app-background:   #1f1c1b;
+	--theme-normal-white:     #EBECD0;
+	--theme-normal-black:     #779556;
+	--theme-selected-white:   #F5F681;
+	--theme-selected-black:   #B9CA42;
+	--theme-highlight-white:  #eb7d6a;
+	--theme-highlight-black:  #d36c50;
+	--theme-move:             #00000024;
+	--theme-arrow:            #ffaa00cc;
+	--theme-eval-white:       #ffffff;
+	--theme-eval-black:       #403d39;
+	--theme-promotion-main:   #ffffff;
+	--theme-promotion-close:  #f1f1f1;
+	--theme-promotion-text:   #8b8987;
+	--theme-moves-header:     #000000;
+	--theme-moves-even:       #1f1c1b;
+	--theme-moves-odd:        #302e2b;
+	--theme-moves-index:      #99a1af; /** text-gray-400 **/
+	--theme-opening-text:     #ffffffb8;
+	--theme-opening-border:   #ffffff4d;
+	--theme-best-badge:       #81b64c;
+	--theme-blunder-badge:    #fa412d;
+	--theme-book-badge:       #d5a47d;
+	--theme-forced-badge:     #96af8b;
+	--theme-good-badge:       #95b776;
+	--theme-inaccuracy-badge: #f7c631;
+	--theme-mistake-badge:    #ffa459;
+}
+
+html {
+    background-color: var(--theme-app-background);
+}
