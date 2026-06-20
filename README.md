@@ -37,7 +37,6 @@ A fully client-side object-oriented Chess game playable in a browser
 
 - TypeScript
 - [Vite](https://vite.dev)
-- [Chess.js](https://npm.im/chess.js)
 
 ### Other
 
