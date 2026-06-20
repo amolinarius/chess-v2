@@ -39,6 +39,7 @@ export class Cell {
         }
     }
     select(board: ChessboardElement) {
+        if (!this.piece) return;
         if (board.selection) {
             board.selection.selected = false;
             board.selection.element?.classList.remove('selected');
@@ -46,12 +47,22 @@ export class Cell {
         this.selected = true;
         this.element!.classList.add('selected');
         board.selection = this;
-        //TODO
-        // const moves = board.chess.moves({ square: this.square, verbose: true });
-        // for (const move of moves) {
-        //     Utils.cellFromBoard(board.board!, move.to).element?.classList.add('move');
-        // }
-        // console.log(moves);
+        const moves = board.chess.moves({ square: this.square, piece: this.piece });
+        console.groupCollapsed(...Utils.formatLog('moves', `Loaded possible moves from ${this.element?.getAttribute('data-square')??'Unknown square'}`));
+        for (const move of moves) {
+            const from = (move&(63<<10))>>10;
+            const to = (move&(63<<4))>>4;
+            const flags = move & 0xF;
+            Utils.cellFromBoard(board.board!, to).element?.classList.add('move');
+            const log = [
+                `- ${move} (0b${(move>>>0).toString(2)}).`,
+                `From: ${Utils.chars[from%8]+(8-Math.floor(from/8))} (0b${(from>>>0).toString(2).padStart(6,'0')} = ${from}),`,
+                `To: ${Utils.chars[to%8]+(8-Math.floor(to/8))} (0b${(to>>>0).toString(2).padStart(6,'0')} = ${to}),`,
+                `Flags: ${flags} (0b${(flags>>>0).toString(2).padStart(4,'0')}).`
+            ]
+            console.log(...log);
+        }
+        console.groupEnd();
     }
     
 }
@@ -152,7 +163,6 @@ export default class ChessboardElement extends HTMLElement {
             for (let x=0; x<8; x++) {
                 const cell = board[y][x];
                 const elm = this.shadowRoot!.querySelector<HTMLTableCellElement>(`[data-square=${Utils.chars[x] + (8-y)}]`)!;
-                console.log(Utils.chars[x] + (y+1));
                 cell.element = elm;
                 elm.addEventListener('click', () => cell.onLeftClick(this));
 

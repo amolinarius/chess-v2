@@ -1,4 +1,6 @@
-import { Color, PieceType, type Piece, type Square } from "../enums";
+import { Color, PieceType, Square, type Piece } from "../enums";
+import Utils from "../utils";
+import { generateMoves } from "./moves";
 
 export default class Chess {
     static default_position: string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -41,11 +43,11 @@ export default class Chess {
                 else bitboards[bitboard][color] |= (1n << BigInt(y*8 + x));
             }
         }
-        console.log(bitboards);
+        Utils.log('bitboards', 'Initialized engine with bitboards', bitboards);
         return bitboards;
     }
     load(fen: FEN) {this.board = this.bitboardsFromFen(fen);}
-    get(square: Square): Piece|undefined { //TODO
+    get(square: Square): Piece|undefined {
         if (this.board.kings.white == square) {return {type: PieceType.KING, color: Color.WHITE}}
         else if (this.board.kings.black == square) {return {type: PieceType.KING, color: Color.BLACK}}
 
@@ -60,5 +62,8 @@ export default class Chess {
             }
         }
         return undefined;
+    }
+    moves(from: { piece: Piece, square: Square }): Move[] {
+        return generateMoves(this, from.piece, from.square);
     }
 }

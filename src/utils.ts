@@ -3,6 +3,7 @@ import ChessboardElement, { Cell } from "./chessboard";
 import { Color } from "./enums";
 import type { PieceType, Square } from "./enums";
 
+type LogType = 'moves'|'bitboards'|'debug';
 export default class Utils {
     static chars: string[] = "abcdefgh".split('');
     static isWhite(square: Square): boolean {
@@ -46,10 +47,27 @@ export default class Utils {
         }
         [...board.shadowRoot!.querySelectorAll('.move')].forEach(move => move.classList.remove('move'));
     }
-    static getPieceSymbol(piece: PieceType) {
-        return "pnbrqk".split('')[piece];
+    static getPieceSymbol(piece: PieceType) {return "pnbrqk".split('')[piece];}
+    static inBounds(x: number): boolean;
+    static inBounds(x: number, y: number): boolean;
+    static inBounds(x: number, y?: number): boolean {
+        return x >= 0 && x < 8 && (y == undefined || (y >= 0 && y < 8));
     }
     static stylesheet(strings: TemplateStringsArray, ...values: any[]): CSSStyleSheet {return stylesheet(strings, ...values)}
+    static capitalize(str: string) {
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
+    static formatLog(type: LogType, ...data: any[]) {
+        const color: {[key in LogType]: string} = {
+            moves: '#228b22',
+            bitboards: '#b22222',
+            debug: '#888'
+        };
+        return ['%c'+this.capitalize(type), 'color:white;padding:2px 5px;border-radius:3px;background-color:'+color[type], ...data];
+    }
+    static log(type: LogType, ...data: any[]) {
+        console.log(...this.formatLog(type, ...data));
+    }
 }
 
 export function stylesheet(strings: TemplateStringsArray, ...values: any[]): CSSStyleSheet {
