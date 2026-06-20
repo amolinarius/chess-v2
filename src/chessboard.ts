@@ -1,15 +1,16 @@
-import { Chess, Piece, Square } from "chess.js";
+import Chess from "./engine/main";
 import Utils, { stylesheet } from "./utils";
+import { Color, type Piece, type Square } from "./enums";
 
 export class Cell {
     square: Square;
-    color: 'white'|'black';
+    color: Color;
     piece?: Piece;
     element?: HTMLTableCellElement;
     selected: boolean = false;
     highlighted: boolean = false;
     isMove: boolean = false;
-    constructor({ square, color, piece }: {square: Square, color: 'white'|'black', piece?: Piece}) {
+    constructor({ square, color, piece }: {square: Square, color: Color, piece?: Piece}) {
         this.square = square;
         this.color = color;
         this.piece = piece;
@@ -27,7 +28,7 @@ export class Cell {
                 return
             }
             if (board.selection.isMove) {
-                board.chess.move({ from: board.selection.square, to: this.square });
+                //TODO board.chess.move({ from: board.selection.square, to: this.square });
                 Utils.clearSelection(board);
                 return;
             }
@@ -45,11 +46,12 @@ export class Cell {
         this.selected = true;
         this.element!.classList.add('selected');
         board.selection = this;
-        const moves = board.chess.moves({ square: this.square, verbose: true });
-        for (const move of moves) {
-            Utils.cellFromBoard(board.board!, move.to).element?.classList.add('move');
-        }
-        console.log(moves);
+        //TODO
+        // const moves = board.chess.moves({ square: this.square, verbose: true });
+        // for (const move of moves) {
+        //     Utils.cellFromBoard(board.board!, move.to).element?.classList.add('move');
+        // }
+        // console.log(moves);
     }
     
 }
@@ -136,7 +138,7 @@ export default class ChessboardElement extends HTMLElement {
                 cell.dataset.cell = Utils.chars[x];
                 cell.dataset.row = y.toString();
                 cell.dataset.square = label;
-                cell.dataset.color = Utils.isWhite(label as Square)?'white':'black';
+                cell.dataset.color = Utils.isWhite(y*8 + x)?'white':'black';
                 row.appendChild(cell);
             }
             tbody.appendChild(row);
@@ -146,17 +148,17 @@ export default class ChessboardElement extends HTMLElement {
     }
     loadPosition(_chess?: Chess) {
         const board = (_chess?Utils.boardFromChessInstance(_chess):this.board)!;
-        for (let y=8; y>0; y--) {
+        for (let y=0; y<8; y++) {
             for (let x=0; x<8; x++) {
-                const square = Utils.chars[x]+y;
-                const cell = board[8-y][x];
-                const elm = this.shadowRoot!.querySelector<HTMLTableCellElement>(`[data-square=${square}]`)!;
+                const cell = board[y][x];
+                const elm = this.shadowRoot!.querySelector<HTMLTableCellElement>(`[data-square=${Utils.chars[x] + (8-y)}]`)!;
+                console.log(Utils.chars[x] + (y+1));
                 cell.element = elm;
                 elm.addEventListener('click', () => cell.onLeftClick(this));
 
                 if (!cell.piece) {continue}
                 const img = document.createElement('img');
-                img.src = `pieces/${cell.piece.color+cell.piece.type}.png`;
+                img.src = `pieces/${cell.piece.color==Color.WHITE?'w':'b'}${Utils.getPieceSymbol(cell.piece.type)}.png`;
                 elm.innerHTML = '';
                 elm.appendChild(img);
             }

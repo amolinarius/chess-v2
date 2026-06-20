@@ -1,18 +1,19 @@
-import { Chess, Square } from "chess.js";
+import Chess from "./engine/main";
 import ChessboardElement, { Cell } from "./chessboard";
+import { Color } from "./enums";
+import type { PieceType, Square } from "./enums";
 
 export default class Utils {
-    static chars = 'abcdefgh'.split('');
+    static chars: string[] = "abcdefgh".split('');
     static isWhite(square: Square): boolean {
-        const coords = [this.chars.indexOf(square.slice(0,1)), parseInt(square.slice(1))];
-        return (coords[0]+coords[1]) % 2 === 0;
+        return (square - (Math.floor(square/8)%2)) % 2 === 0;
     }
     static boardFromChessInstance(_chess: Chess) {
         const board = [];
-        for (let y=8; y>0; y--) {
+        for (let y=0; y<8; y++) {
             const row = [];
             for (let x=0; x<8; x++) {
-                const square = this.chars[x]+y as Square;
+                const square = y*8 + x;
                 const cell = this.cellFromChessInstance(_chess, square);
                 row.push(cell);
             }
@@ -26,7 +27,7 @@ export default class Utils {
     static cellFromChessInstance(_chess: Chess, square: Square): Cell {
         return new Cell({
             square,
-            color: this.isWhite(square)?'white':'black',
+            color: this.isWhite(square)?Color.WHITE:Color.BLACK,
             piece: _chess.get(square)
         });
     }
@@ -34,8 +35,8 @@ export default class Utils {
         return this.cellFromChessInstance(new Chess(position), square);
     }
     static cellFromBoard(board: Array<Cell[]>, square: Square): Cell {
-        const y = parseInt(square.slice(1)), x = Utils.chars.indexOf(square.slice(0,1));
-        return board[8-y][x];
+        const y = Math.floor(square / 8), x = square % 8;
+        return board[y][x];
     }
     static clearSelection(board: ChessboardElement) {
         if (board.selection) {
@@ -44,6 +45,9 @@ export default class Utils {
             delete board.selection;
         }
         [...board.shadowRoot!.querySelectorAll('.move')].forEach(move => move.classList.remove('move'));
+    }
+    static getPieceSymbol(piece: PieceType) {
+        return "pnbrqk".split('')[piece];
     }
     static stylesheet(strings: TemplateStringsArray, ...values: any[]): CSSStyleSheet {return stylesheet(strings, ...values)}
 }
