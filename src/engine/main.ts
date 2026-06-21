@@ -53,12 +53,15 @@ export default class Chess {
         this.board = this.bitboardsFromFen(fen);
         this.nextPlayer = fen.split(' ')[1] == 'b' ? Color.BLACK : Color.WHITE;
     }
-    get(square: Square): Piece|undefined {
+    get(square: Square, _color?: Color): Piece|undefined {
         if (this.board.kings.white == square) {return {type: PieceType.KING, color: Color.WHITE}}
         else if (this.board.kings.black == square) {return {type: PieceType.KING, color: Color.BLACK}}
+        
+        let possibleColors = ['white','black'];
+        if (_color != undefined) possibleColors.splice((_color+1)%2);
 
         for (const key of ['pawns','bishops','knights','rooks','queens']) {
-            for (const color of ['white','black']) {
+            for (const color of possibleColors) {
                 const bitboard = this.board[key as Exclude<BitboardKey,'kings'>][color as 'white'|'black'];
                 if ((bitboard & (1n << BigInt(square))) == 0n) {continue}
                 return {
