@@ -55,4 +55,10 @@ type MoveFlags = number;
  * @see {@link MoveFlags}
  * @structure origin destination flags
  */
-type Move = number;
+type MoveRepresentation = number;
+
+interface Move {
+    value: MoveRepresentation;
+    isCheck: boolean;
+    isMate: boolean;
+}

@@ -1,6 +1,7 @@
 import Chess from "./engine/main";
 import Utils, { stylesheet } from "./utils";
 import { Color, type Piece, type Square } from "./enums";
+import { createMove } from "./engine/moves";
 
 export class Cell {
     square: Square;
@@ -27,9 +28,12 @@ export class Cell {
                 Utils.clearSelection(board);
                 return
             }
-            if (board.selection.isMove) {
-                //TODO board.chess.move({ from: board.selection.square, to: this.square });
+            if (this.isMove) {
+                const move = board.moves.find(m => (m.value&(63<<4))>>4 == this.square);
+                if (move == undefined) console.error(...Utils.formatLog('moves'), "Can't play move: not found");
+                else board.chess.applyMove(move);
                 Utils.clearSelection(board);
+                board.loadPosition();
                 return;
             }
         }
@@ -48,20 +52,24 @@ export class Cell {
         this.element!.classList.add('selected');
         board.selection = this;
         const moves = board.chess.moves({ square: this.square, piece: this.piece });
-        console.groupCollapsed(...Utils.formatLog('moves', `Loaded possible moves from ${this.element?.getAttribute('data-square')??'Unknown square'}`));
+        const from = this.square;
+        console.groupCollapsed(...Utils.formatLog('moves', `Loaded ${moves.length} possible move${moves.length!=1?'s':''} from ${Utils.chars[from%8]+(8-Math.floor(from/8))}`));
         for (const move of moves) {
-            const from = (move&(63<<10))>>10;
-            const to = (move&(63<<4))>>4;
-            const flags = move & 0xF;
-            Utils.cellFromBoard(board.board!, to).element?.classList.add('move');
+            const { value } = move;
+            const to = (value&(63<<4))>>4;
+            const flags = value & 0xF;
+            const elm = Utils.cellFromBoard(board.board!, to).element;
+            elm?.classList.add('move');
+            if (board.board) board.board[Math.floor(to/8)][to%8].isMove = true;
             const log = [
-                `- ${move} (0b${(move>>>0).toString(2)}).`,
+                `- ${move} (0b${(value>>>0).toString(2)}).`,
                 `From: ${Utils.chars[from%8]+(8-Math.floor(from/8))} (0b${(from>>>0).toString(2).padStart(6,'0')} = ${from}),`,
                 `To: ${Utils.chars[to%8]+(8-Math.floor(to/8))} (0b${(to>>>0).toString(2).padStart(6,'0')} = ${to}),`,
                 `Flags: ${flags} (0b${(flags>>>0).toString(2).padStart(4,'0')}).`
             ]
             console.log(...log);
         }
+        board.moves = moves;
         console.groupEnd();
     }
     
@@ -122,6 +130,7 @@ export default class ChessboardElement extends HTMLElement {
     table?: HTMLTableElement;
     board?: Array<Cell[]>;
     selection?: Cell;
+    moves: Move[] = [];
 
     connectedCallback() {
         const fenAttr = this.getAttribute('baseFen');
@@ -158,14 +167,15 @@ export default class ChessboardElement extends HTMLElement {
         this.loadPosition();
     }
     loadPosition(_chess?: Chess) {
-        const board = (_chess?Utils.boardFromChessInstance(_chess):this.board)!;
+        this.board = Utils.boardFromChessInstance(_chess ?? this.chess);
         for (let y=0; y<8; y++) {
             for (let x=0; x<8; x++) {
-                const cell = board[y][x];
+                const cell = this.board[y][x];
                 const elm = this.shadowRoot!.querySelector<HTMLTableCellElement>(`[data-square=${Utils.chars[x] + (8-y)}]`)!;
                 cell.element = elm;
-                elm.addEventListener('click', () => cell.onLeftClick(this));
+                elm.onclick = () => cell.onLeftClick(this);
 
+                elm.innerHTML = '';
                 if (!cell.piece) {continue}
                 const img = document.createElement('img');
                 img.src = `pieces/${cell.piece.color==Color.WHITE?'w':'b'}${Utils.getPieceSymbol(cell.piece.type)}.png`;

@@ -1,13 +1,16 @@
 import { Color, PieceType, Square, type Piece } from "../enums";
 import Utils from "../utils";
-import { generateMoves } from "./moves";
+import { applyMove, generateMoves } from "./moves";
 
 export default class Chess {
     static default_position: string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    board: Bitboards;
+    board!: Bitboards;
+    nextPlayer!: Color;
+
     get ctor() {return this.constructor as {[key: string]: any}}
-    constructor(fen?: FEN) {
-        this.board = this.bitboardsFromFen(fen ?? this.ctor.default_position);
+    constructor(_fen?: FEN) {
+        const fen: string = _fen ?? this.ctor.default_position;
+        this.load(fen);
     }
     bitboardsFromFen(fen: FEN): Bitboards {
         const bitboards: Bitboards = {
@@ -46,7 +49,10 @@ export default class Chess {
         Utils.log('bitboards', 'Initialized engine with bitboards', bitboards);
         return bitboards;
     }
-    load(fen: FEN) {this.board = this.bitboardsFromFen(fen);}
+    load(fen: FEN) {
+        this.board = this.bitboardsFromFen(fen);
+        this.nextPlayer = fen.split(' ')[1] == 'b' ? Color.BLACK : Color.WHITE;
+    }
     get(square: Square): Piece|undefined {
         if (this.board.kings.white == square) {return {type: PieceType.KING, color: Color.WHITE}}
         else if (this.board.kings.black == square) {return {type: PieceType.KING, color: Color.BLACK}}
@@ -65,5 +71,8 @@ export default class Chess {
     }
     moves(from: { piece: Piece, square: Square }): Move[] {
         return generateMoves(this, from.piece, from.square);
+    }
+    applyMove(move: Move, player?: Color): Bitboards {
+        return applyMove(this, move, player);
     }
 }

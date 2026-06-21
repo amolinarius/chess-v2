@@ -46,6 +46,7 @@ export default class Utils {
             delete board.selection;
         }
         [...board.shadowRoot!.querySelectorAll('.move')].forEach(move => move.classList.remove('move'));
+        if (board.board) board.board.forEach(row => row.forEach(c => c.isMove = false));
     }
     static getPieceSymbol(piece: PieceType) {return "pnbrqk".split('')[piece];}
     static inBounds(x: number): boolean;
