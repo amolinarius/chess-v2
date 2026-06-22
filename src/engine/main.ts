@@ -6,6 +6,7 @@ export default class Chess {
     static default_position: string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     board!: Bitboards;
     nextPlayer!: Color;
+    enpassantFile?: number;
 
     get ctor() {return this.constructor as {[key: string]: any}}
     constructor(_fen?: FEN) {

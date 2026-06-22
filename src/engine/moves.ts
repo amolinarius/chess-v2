@@ -27,6 +27,7 @@ export function generatePawnMoves(chess: Chess, piece: Piece, square: Square): M
     for (const dir of [LEFT, RIGHT]) {
         if (Utils.inBounds(x+dir, y+forward/8) && (getPieces(board, opponentColor) & (1n << BigInt(square+dir+forward))) > 0n) moves.push(createMove(square, square+dir+forward, 0b100));
     }
+    if (chess.enpassantFile && y == baseRank + 3*(forward/8) && Math.abs(chess.enpassantFile - x) == 1) moves.push(createMove(square, square+forward+chess.enpassantFile-x, 0b101));
     return moves;
 }
 export function generateKnightMoves(chess: Chess, piece: Piece, square: Square): Move[] {
@@ -103,11 +104,13 @@ export function generateMoves(chess: Chess, piece: Piece, square: Square) {
     const _chess = LOCAL_CHESS;
     const board = chess.board;
     const nextPlayer = chess.nextPlayer;
+    const enpassantFile = chess.enpassantFile;
     let king = board.kings[nextPlayer == Color.WHITE ? 'white' : 'black'];
     let oldking;
     for (const move of moves) {
         _chess.board = structuredClone(board);
         _chess.nextPlayer = nextPlayer;
+        _chess.enpassantFile = enpassantFile;
         _chess.applyMove(move, nextPlayer);
         const origin = (move.value&(63<<10))>>10;
         const dest = (move.value&(63<<4))>>4;
@@ -182,18 +185,24 @@ export function applyMove(chess: Chess, move: Move, player?: Color) {
     }
 
     if ((flags & 0b100) > 0) { //? Capture
-        const _capture = chess.get(dest, player == undefined ? undefined : (player+1)%2);
-        if (_capture == undefined) {
-            console.error(...Utils.formatLog('moves', "Invalid move: no piece to capture"));
-            return board;
+        if ((flags & 1) == 1) board.pawns[piece.color == Color.WHITE ? 'black' : 'white'] &= ~(1n << BigInt(dest + DOWN)); //? En-passant
+        else {
+            const _capture = chess.get(dest, player == undefined ? undefined : (player+1)%2);
+            if (_capture == undefined) {
+                console.error(...Utils.formatLog('moves', "Invalid move: no piece to capture"));
+                return board;
+            }
+            const captureBitboard = getBitboardFromPiece(_capture);
+            if (captureBitboard.name == "kings") {
+                console.error(...Utils.formatLog('moves', "Invalid move: can't capture king"));
+                return board;
+            }
+            board[captureBitboard.name][captureBitboard.color] &= ~(1n << BigInt(dest));
         }
-        const captureBitboard = getBitboardFromPiece(_capture);
-        if (captureBitboard.name == "kings") {
-            console.error(...Utils.formatLog('moves', "Invalid move: can't capture king"));
-            return board;
-        }
-        board[captureBitboard.name][captureBitboard.color] &= ~(1n << BigInt(dest));
     }
+
+    if (flags == 1) chess.enpassantFile = dest % 8; //? Double pawn
+    else delete chess.enpassantFile;
 
     board[sourceBitboard.name][sourceBitboard.color] &= ~(1n << BigInt(origin));
     board[sourceBitboard.name][sourceBitboard.color] |= 1n << BigInt(dest); //? Can use sourceBitboard, piece type/color didn't change

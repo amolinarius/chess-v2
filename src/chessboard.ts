@@ -61,7 +61,7 @@ export class Cell {
             elm?.classList.add('move');
             if (board.board) board.board[Math.floor(to/8)][to%8].isMove = true;
             const log = [
-                `- ${move} (0b${(value>>>0).toString(2)}).`,
+                "-", move, `(0b${(value>>>0).toString(2)}).`,
                 `From: ${Utils.chars[from%8]+(8-Math.floor(from/8))} (0b${(from>>>0).toString(2).padStart(6,'0')} = ${from}),`,
                 `To: ${Utils.chars[to%8]+(8-Math.floor(to/8))} (0b${(to>>>0).toString(2).padStart(6,'0')} = ${to}),`,
                 `Flags: ${flags} (0b${(flags>>>0).toString(2).padStart(4,'0')}).`
