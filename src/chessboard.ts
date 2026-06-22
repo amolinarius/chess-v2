@@ -1,7 +1,6 @@
 import Chess from "./engine/main";
 import Utils, { stylesheet } from "./utils";
 import { Color, type Piece, type Square } from "./enums";
-import { createMove } from "./engine/moves";
 
 export class Cell {
     square: Square;

@@ -58,7 +58,7 @@ export default class Chess {
         else if (this.board.kings.black == square) {return {type: PieceType.KING, color: Color.BLACK}}
         
         let possibleColors = ['white','black'];
-        if (_color != undefined) possibleColors.splice((_color+1)%2);
+        if (_color != undefined) possibleColors = [possibleColors[_color]];
 
         for (const key of ['pawns','bishops','knights','rooks','queens']) {
             for (const color of possibleColors) {

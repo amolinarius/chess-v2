@@ -2,7 +2,7 @@ import { Color, PieceType, type Piece, type Square } from "../enums";
 import Utils from "../utils";
 import Chess from "./main";
 
-const UP = -8, RIGHT = 1, BOTTOM = 8, LEFT = -1;
+const UP = -8, RIGHT = 1, DOWN = 8, LEFT = -1;
 
 export function createMove(from: Square, to: Square, flags: MoveFlags = 0, isCheck: boolean = false, isMate: boolean = false): Move {
     return { value: (from<<10) | (to<<4) | flags, isCheck, isMate };
@@ -17,7 +17,7 @@ export function getPieces(board: Bitboards, color?: Color): bigint {
 export function generatePawnMoves(chess: Chess, piece: Piece, square: Square): Move[] {
     const { board } = chess, moves = [], opponentColor = (piece.color+1)%2 as Color;
     const [x, y] = [square%8, Math.floor(square/8)];
-    const forward = piece.color == Color.WHITE ? UP : BOTTOM;
+    const forward = piece.color == Color.WHITE ? UP : DOWN;
     const baseRank = piece.color == Color.WHITE ? 6 : 1;
 
     if (Utils.inBounds(y+forward/8) && (getPieces(board) & (1n << BigInt(square+forward))) == 0n) {
@@ -83,9 +83,11 @@ export function generateKingMoves(chess: Chess, piece: Piece, square: Square): M
     return moves;
 }
 
+let LOCAL_CHESS: Chess;
 export function generateMoves(chess: Chess, piece: Piece, square: Square) {
     if (piece.color != chess.nextPlayer) return [];
     let moves;
+    const processedMoves = [];
 
     switch (piece.type) {
         case PieceType.PAWN: moves = generatePawnMoves(chess, piece, square); break;
@@ -95,8 +97,61 @@ export function generateMoves(chess: Chess, piece: Piece, square: Square) {
         case PieceType.QUEEN: moves = generateQueenMoves(chess, piece, square); break;
         case PieceType.KING: moves = generateKingMoves(chess, piece, square); break;
     }
-    //TODO Post-processing: Checks and pins
-    return moves;
+
+    //? Post-processing: Checks and pins
+    if (LOCAL_CHESS == undefined) LOCAL_CHESS = new Chess();
+    const _chess = LOCAL_CHESS;
+    const board = chess.board;
+    const nextPlayer = chess.nextPlayer;
+    let king = board.kings[nextPlayer == Color.WHITE ? 'white' : 'black'];
+    let oldking;
+    for (const move of moves) {
+        _chess.board = structuredClone(board);
+        _chess.nextPlayer = nextPlayer;
+        _chess.applyMove(move, nextPlayer);
+        const origin = (move.value&(63<<10))>>10;
+        const dest = (move.value&(63<<4))>>4;
+
+        if (origin == king) {
+            oldking = king;
+            king = dest;
+        }
+
+        if (!isUnderAttack(_chess, { type: PieceType.KING, color: nextPlayer }, king)) processedMoves.push(move);
+        if (king == dest) king = oldking!;
+    }
+
+    return processedMoves;
+}
+
+export function isUnderAttack(chess: Chess, piece: Piece, square: Square) {
+    const attacker = (piece.color+1)%2;
+    const pawnDirection = (attacker == Color.WHITE) ? UP : DOWN;
+    const piecesMoves = [generateBishopMoves(chess, piece, square), generateKnightMoves(chess, piece, square), generateRookMoves(chess, piece, square), generateKingMoves(chess, piece, square)];
+    for (let i=0; i<4; i++) {
+        const moves = piecesMoves[i];
+        for (const move of moves) {
+            const dest = (move.value&(63<<4))>>4;//? Attacker's dest is from since moves are reversed
+            if ((move.value&0b100) == 0) continue; //? Not a capture
+
+            const capture = chess.get(dest, attacker);
+            if (!capture) {
+                console.error(...Utils.formatLog('moves', 'isUnderAttack failed: no piece to capture'));
+                return;
+            }
+
+            if (!(
+                (i == 0 && (capture.type == PieceType.BISHOP || capture.type == PieceType.QUEEN || capture.type == PieceType.PAWN /*Pawn conditions later*/)) ||
+                (i == 1 && capture.type == PieceType.KNIGHT) ||
+                (i == 2 && (capture.type == PieceType.ROOK || capture.type == PieceType.QUEEN)) ||
+                (i == 3 && capture.type == PieceType.KING)
+            )) continue;
+
+            if (i == 0 && capture.type == PieceType.PAWN && dest != square+pawnDirection+LEFT && dest != square+pawnDirection+RIGHT) continue;
+            return true;
+        }
+    }
+    return false;
 }
 
 export function getBitboardFromPiece(piece: Piece) {
@@ -127,7 +182,7 @@ export function applyMove(chess: Chess, move: Move, player?: Color) {
     }
 
     if ((flags & 0b100) > 0) { //? Capture
-        const _capture = chess.get(dest, player);
+        const _capture = chess.get(dest, player == undefined ? undefined : (player+1)%2);
         if (_capture == undefined) {
             console.error(...Utils.formatLog('moves', "Invalid move: no piece to capture"));
             return board;
