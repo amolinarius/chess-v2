@@ -62,3 +62,10 @@ interface Move {
     isCheck: boolean;
     isMate: boolean;
 }
+
+/**
+ * A 4-bit unsigned integer representing players' castling rights
+ * @see https://www.chessprogramming.org/Castling_Rights
+ * @structure white_kingside white_queenside black_kingside black_queenside
+ */
+type CastlingRights = number;

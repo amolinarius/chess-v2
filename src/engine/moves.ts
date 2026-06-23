@@ -1,4 +1,4 @@
-import { Color, PieceType, type Piece, type Square } from "../enums";
+import { Color, PieceType, Square, type Piece } from "../enums";
 import Utils from "../utils";
 import Chess from "./main";
 
@@ -71,7 +71,7 @@ export function generateRookMoves(chess: Chess, piece: Piece, square: Square): M
 export function generateQueenMoves(chess: Chess, piece: Piece, square: Square): Move[] {
     return [...generateBishopMoves(chess, piece, square), ...generateRookMoves(chess, piece, square)];
 }
-export function generateKingMoves(chess: Chess, piece: Piece, square: Square): Move[] {
+export function generateKingMoves(chess: Chess, piece: Piece, square: Square, ignoreCastling: boolean = false): Move[] {
     const { board } = chess, moves = [], opponentColor = (piece.color+1)%2 as Color;
     const pieces = [getPieces(board, Color.WHITE), getPieces(board, Color.BLACK)];
     const [x, y] = [square%8, Math.floor(square/8)];
@@ -81,6 +81,23 @@ export function generateKingMoves(chess: Chess, piece: Piece, square: Square): M
         const isCapture = (pieces[opponentColor] & (1n << BigInt(square+dir[0]+dir[1]*8))) > 0n;
         if (Utils.inBounds(x+dir[0],y+dir[1]) && (pieces[piece.color] & (1n << BigInt(square+dir[0]+dir[1]*8))) == 0n) moves.push(createMove(square, square+dir[0]+dir[1]*8, +isCapture*0b100));
     }
+
+    if (ignoreCastling) return moves;
+
+    const backranks = [[Square.B8, Square.C8, Square.D8], [Square.F8, Square.G8]]; //? Queenside, kingside (reversed from bitmask to keep index)
+    if (piece.color == Color.WHITE) {
+        for (let i=0; i<2; i++) {
+            backranks[i] = backranks[i].map(sq => sq + DOWN*7);
+        }
+    }
+
+    const canCastle = {
+        queenSide: chess.castlingRights & (1 << 2*opponentColor) && backranks[0].every(sq => chess.get(sq) == undefined && (sq == Square.B8 || sq == Square.B1 || !isUnderAttack(chess, piece, backranks[0][1]))),
+        kingside: chess.castlingRights & (0b10 << 2*opponentColor) && backranks[1].every(sq => chess.get(sq) == undefined && !isUnderAttack(chess, piece, backranks[1][1]))
+    }
+    if (canCastle.queenSide) moves.push(createMove(square, square+2*LEFT, 0b11));
+    if (canCastle.kingside) moves.push(createMove(square, square+2*RIGHT, 0b10));
+
     return moves;
 }
 
@@ -105,12 +122,14 @@ export function generateMoves(chess: Chess, piece: Piece, square: Square) {
     const board = chess.board;
     const nextPlayer = chess.nextPlayer;
     const enpassantFile = chess.enpassantFile;
+    const castlingRights = chess.castlingRights;
     let king = board.kings[nextPlayer == Color.WHITE ? 'white' : 'black'];
     let oldking;
     for (const move of moves) {
         _chess.board = structuredClone(board);
         _chess.nextPlayer = nextPlayer;
         _chess.enpassantFile = enpassantFile;
+        _chess.castlingRights = castlingRights;
         _chess.applyMove(move, nextPlayer);
         const origin = (move.value&(63<<10))>>10;
         const dest = (move.value&(63<<4))>>4;
@@ -130,7 +149,7 @@ export function generateMoves(chess: Chess, piece: Piece, square: Square) {
 export function isUnderAttack(chess: Chess, piece: Piece, square: Square) {
     const attacker = (piece.color+1)%2;
     const pawnDirection = (attacker == Color.WHITE) ? UP : DOWN;
-    const piecesMoves = [generateBishopMoves(chess, piece, square), generateKnightMoves(chess, piece, square), generateRookMoves(chess, piece, square), generateKingMoves(chess, piece, square)];
+    const piecesMoves = [generateBishopMoves(chess, piece, square), generateKnightMoves(chess, piece, square), generateRookMoves(chess, piece, square), generateKingMoves(chess, piece, square, true)];
     for (let i=0; i<4; i++) {
         const moves = piecesMoves[i];
         for (const move of moves) {
@@ -179,11 +198,6 @@ export function applyMove(chess: Chess, move: Move, player?: Color) {
         return board;
     }
     
-    if (piece.type == PieceType.KING || sourceBitboard.name == "kings") { //? Second condition is for TypeScript
-        board.kings[sourceBitboard.color] = dest;
-        return board;
-    }
-
     if ((flags & 0b100) > 0) { //? Capture
         if ((flags & 1) == 1) board.pawns[piece.color == Color.WHITE ? 'black' : 'white'] &= ~(1n << BigInt(dest + DOWN)); //? En-passant
         else {
@@ -200,13 +214,25 @@ export function applyMove(chess: Chess, move: Move, player?: Color) {
             board[captureBitboard.name][captureBitboard.color] &= ~(1n << BigInt(dest));
         }
     }
-
+    
+    if (piece.type == PieceType.ROOK && (origin%8 == 0 || origin%8 == 7)) chess.castlingRights &= ~(1 << (+(origin%8 == 7) + 2*((piece.color+1)%2))); //? If moving a rook from its base square
+    
     if (flags == 1) chess.enpassantFile = dest % 8; //? Double pawn
     else delete chess.enpassantFile;
+    chess.nextPlayer = (piece.color+1)%2;
 
+    if (piece.type == PieceType.KING || sourceBitboard.name == "kings") { //? Second condition is for TypeScript
+        board.kings[sourceBitboard.color] = dest;
+        chess.castlingRights &= ~(0b11 << 2*((piece.color+1)%2));
+
+        if (flags == 0b10 || flags == 0b11) { //? Castling
+            board.rooks[sourceBitboard.color] &= ~(1n << BigInt(7*+(flags == 0b10) + 7*DOWN*+(piece.color==Color.WHITE)));
+            board.rooks[sourceBitboard.color] |= 1n << BigInt((flags == 0b10 ? Square.F8 : Square.D8) + 7*DOWN*+(piece.color==Color.WHITE));
+        }
+        return board;
+    }
     board[sourceBitboard.name][sourceBitboard.color] &= ~(1n << BigInt(origin));
     board[sourceBitboard.name][sourceBitboard.color] |= 1n << BigInt(dest); //? Can use sourceBitboard, piece type/color didn't change
-    chess.nextPlayer = (piece.color+1)%2;
 
     return board;
 }

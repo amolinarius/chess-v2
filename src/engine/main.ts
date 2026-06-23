@@ -7,6 +7,7 @@ export default class Chess {
     board!: Bitboards;
     nextPlayer!: Color;
     enpassantFile?: number;
+    castlingRights: CastlingRights = 0;
 
     get ctor() {return this.constructor as {[key: string]: any}}
     constructor(_fen?: FEN) {
@@ -51,8 +52,18 @@ export default class Chess {
         return bitboards;
     }
     load(fen: FEN) {
+        const [position, nextPlayer, castlingRights, enpassantSquare] = fen.split(' ');
         this.board = this.bitboardsFromFen(fen);
-        this.nextPlayer = fen.split(' ')[1] == 'b' ? Color.BLACK : Color.WHITE;
+        this.nextPlayer = nextPlayer == 'b' ? Color.BLACK : Color.WHITE;
+        if (enpassantSquare == "-") delete this.enpassantFile;
+        else this.enpassantFile = Utils.chars.indexOf(enpassantSquare.charAt(0));
+        this.castlingRights = 0;
+        for (const chr of castlingRights.split('')) {
+            switch (chr.toLowerCase()) {
+                case "k": this.castlingRights |= 1 << 1+2*+(chr == chr.toUpperCase()); break;
+                case "q": this.castlingRights |= 1 << 2*+(chr == chr.toUpperCase()); break;
+            }
+        }
     }
     get(square: Square, _color?: Color): Piece|undefined {
         if (this.board.kings.white == square) {return {type: PieceType.KING, color: Color.WHITE}}
